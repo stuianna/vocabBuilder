@@ -52,3 +52,27 @@ By default, it asks 5 questions every 10 minutes, this can be changed using the 
 vocabBuilder words.csv -q 10 -t 20
 ```
 
+# Adding Words
+
+If you have [Translate-shell](https://github.com/soimort/translate-shell) available, a little script like this
+can make adding words easy.
+
+```
+#!/bin/bash
+
+#FILE: tll -> Add translated words to database
+
+TRANSLATION="$(trans en:lv -b $1)"
+echo "${1}, ${TRANSLATION}" >> /path/to/word/directory/current.csv
+```
+Use trans -R to get the the desired language codes from translate-shell and change the path.
+
+Chuck it somewhere so it's available on path, then use it like:
+```
+tll hippo
+```
+This will append the new word to the end of the file.
+```
+hippo, nīlzirgs
+```
+The new word is included in the test set once all words in the existing set have been used.

@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QMainWin
 from PyQt5 import QtCore
 
 
-__version__ = '0.1.0-alpha'
+__version__ = '0.1.1'
 
 #GUI options
 window_height = 0.20
@@ -130,16 +130,17 @@ class QuestionWindow(QMainWindow):
 
 class QuestionMaker():
 
-    def __init__(self,questionFile):
+    def __init__(self):
+
+        return
+
+    #Makes the random list of question, incorrect options and answers
+    def makeRandomList(self,questionNumber,questionFile):
 
         #Open the question file
         with open(questionFile,'r') as f:
             reader = csv.reader(f)
             self.questions = list(reader)
-        return
-
-    #Makes the random list of question, incorrect options and answers
-    def makeRandomList(self,questionNumber):
 
         questionList = []
         indexList = random.sample(range(0, len(self.questions)), len(self.questions))
@@ -212,18 +213,18 @@ if __name__ == '__main__':
 
     parser = makeArgs()
     options = vars(parser.parse_args())
-    app = QApplication(sys.argv)
-    window = QuestionWindow(app)
 
     if not os.path.exists(os.path.abspath(options['wordList'][0])):
             print('Error: File {} does not exist'.format(options['wordList'][0]))
             sys.exit()
 
-    questions = QuestionMaker(options['wordList'][0])
+    app = QApplication(sys.argv)
+    window = QuestionWindow(app)
+    questions = QuestionMaker()
 
     while True:
 
-        questionList = questions.makeRandomList(options['questions'])
+        questionList = questions.makeRandomList(options['questions'],options['wordList'][0])
         currentIndex = 0
 
         while currentIndex < len(questionList):
