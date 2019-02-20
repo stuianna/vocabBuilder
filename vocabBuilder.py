@@ -4,16 +4,259 @@ import random
 import csv
 import argparse
 import os
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QMainWindow
-from PyQt5 import QtCore
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QMainWindow, QHBoxLayout, QGroupBox, QVBoxLayout, QGridLayout, QSpinBox, QFileDialog, QMessageBox, QSystemTrayIcon, QMenu, QAction, QStyle, QSpacerItem, QSizePolicy
+from PyQt5 import QtCore, QtGui, QtTest
+from PyQt5.QtGui import QIcon, QPixmap
 
+#This needs to be included so the app knowns the correct path to loo
+#for resource files
+if getattr(sys, 'frozen', False):
+    # If the application is run as a bundle, the pyInstaller bootloader
+    # extends the sys module by a flag frozen=True and sets the app 
+    # path into variable _MEIPASS'.
+    dir_path = sys._MEIPASS + os.sep
+else:
+    dir_path = os.path.dirname(os.path.abspath(__file__)) + os.sep
 
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 
-#GUI options
+#GUI testing screen options
 window_height = 0.20
 window_width = 0.40
 padding = 0.02
+
+#Program type CLI/GUI
+mode = 'CLI'
+
+#Testing variable for pause/run
+testing = True
+
+class MainMenu(QMainWindow):
+
+    def __init__(self,app):
+
+        super().__init__()
+        self.app = app
+        self.exitStatus = None
+        return
+
+    def runWindow(self):
+
+        self.loadSettings()
+        self.setUI()
+        self.window.show()
+        self.app.exec_()
+
+        if self.exitStatus == 'start':
+            self.saveSettings()
+
+        return self.exitStatus,         \
+            self.fileName,              \
+            self.spin_time.value(),     \
+            self.spin_questions.value()
+
+    def loadSettings(self):
+
+        settings = QtCore.QSettings('vocabBuilder', 'config')
+
+        self.time = settings.value('time', type=int)
+        self.questions = settings.value('questions', type=int)
+        self.fileName = settings.value('fileName', type=str)
+
+        #If the filename is blank, then the settings file doesn't exist
+        #and this is the first time the program has been run. Use default values.
+        if self.fileName == '':
+            self.time = 10
+            self.questions = 5
+
+    def saveSettings(self):
+
+        settings = QtCore.QSettings('vocabBuilder', 'config')
+        settings.setValue('time',self.spin_time.value())
+        settings.setValue('questions',self.spin_questions.value())
+        settings.setValue('fileName',self.fileName)
+        return
+
+    def setUI(self):
+
+        self.window = QWidget()
+        self.window.setWindowIcon(QtGui.QIcon(dir_path + 'resources/bbp.png'))
+        self.window.setWindowTitle('vocabBuilder')
+
+
+        self.btn_exit = QPushButton('Exit')
+        self.btn_exit.clicked.connect(self.exitClicked)
+
+        self.btn_start = QPushButton('Start')
+        self.btn_start.clicked.connect(self.startClicked)
+
+        # The start button should be initially disabled if no file exists
+        if self.fileName == '':
+            self.btn_start.setEnabled(False)
+
+        # Check the file still exists and is valid
+        else:
+            self.btn_start.setEnabled(self.checkFileContents(self.fileName))
+
+        self.btn_words = QPushButton('Words')
+        self.btn_words.clicked.connect(self.wordsClicked)
+
+        self.spin_time = QSpinBox()
+        self.spin_time.setMinimum(1)
+        self.spin_time.setValue(self.time)
+
+        self.spin_questions = QSpinBox()
+        self.spin_questions.setMinimum(1)
+        self.spin_questions.setValue(self.questions)
+
+        wordsLabel = QLabel('Questions:')
+        timeLabel = QLabel('Time:')
+
+        picLabel = QLabel()
+        pixmap = QPixmap(dir_path + 'resources/bbp.png')
+        picLabel.setPixmap(pixmap)
+
+        mainLayout = QVBoxLayout(self.window)
+
+        leftLayout = QVBoxLayout()
+        leftLayout.addWidget(picLabel)
+
+        vSpacer = QSpacerItem(5,10,
+                QSizePolicy.Minimum, QSizePolicy.Expanding)
+
+        hSpacer = QSpacerItem(10,5,
+                QSizePolicy.Minimum, QSizePolicy.Expanding)
+
+        rightLayout = QVBoxLayout()
+        rightLayout.setSpacing(0)
+        rightLayout.setContentsMargins(0,0,0,0)
+        rightLayout.addWidget(timeLabel)
+        rightLayout.addWidget(self.spin_time)
+        rightLayout.addWidget(wordsLabel)
+        rightLayout.addWidget(self.spin_questions)
+        rightLayout.addItem(vSpacer)
+
+
+        bottomLayout = QHBoxLayout()
+        bottomLayout.addWidget(self.btn_words)
+        bottomLayout.addWidget(self.btn_start)
+        bottomLayout.addWidget(self.btn_exit)
+
+        topLayout = QHBoxLayout()
+        topLayout.addLayout(leftLayout)
+        topLayout.addLayout(rightLayout)
+
+        mainLayout.addLayout(topLayout)
+        mainLayout.addLayout(bottomLayout)
+
+        self.window.setFixedSize(mainLayout.sizeHint())
+        return 
+
+    def exitClicked(self):
+
+        self.exitStatus = 'exit'
+        self.window.close()
+        return 
+
+    def startClicked(self):
+
+        self.exitStatus = 'start'
+        self.window.close()
+        return 
+
+    def wordsClicked(self):
+
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getOpenFileName(self,
+                "Open word dictionary file", 
+                self.fileName,
+                "CSV Files (*.csv)", 
+                options=options)
+
+        fileName = os.path.abspath(fileName)
+
+        if fileName:
+
+            if not self.checkFileContents(fileName):
+                self.btn_start.setEnabled(False)
+                return
+        else:
+            print('No file selected')
+            return
+
+        #If we get this far then the file seems ok.
+        self.fileName = fileName
+        self.btn_start.setEnabled(True)
+        return 
+
+    def checkFileContents(self,fileName):
+
+        try:
+            with open(fileName,'r',encoding="utf8") as f:
+                reader = csv.reader(f)
+                questions = list(reader)
+        except:
+            print('Cannot open selected file')
+            return False
+
+        #Check there is enougth words
+        if len(questions) < 1:
+                QMessageBox.warning(self.window,'Open File Warning',
+                        'Problem with language file, not enougth words.')
+                return False
+
+        #Check there is enougth translations
+        languageNumber = len(questions[0])
+
+        if languageNumber < 2:
+            QMessageBox.warning(self.window,'Open File Warning',
+                    'Problem with language file, not enougth translations.')
+            return False
+
+        #Check that each listing has the same number of translations
+        for question in questions:
+
+            if len(question) != languageNumber:
+                QMessageBox.warning(self.window,'Open File Warning',
+                        'Number of translations does not match.\n{}'.format(question))
+                return False
+
+        return True
+
+class TrayIcon(QMainWindow):
+
+    def __init__(self,app):
+
+        super().__init__()
+        self.app = app
+        return
+
+    def runTray(self):
+
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(QIcon(dir_path + 'resources/bbp.png'))
+
+        quit_action = QAction("Exit", self)
+        self.pause_action = QAction("Pause", self)
+        quit_action.triggered.connect(sys.exit)
+        self.pause_action.triggered.connect(self.pause)
+        tray_menu = QMenu()
+        tray_menu.addAction(self.pause_action)
+        tray_menu.addAction(quit_action)
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.show()
+
+    def pause(self):
+
+        global testing
+
+        if testing == True:
+            testing = False
+            self.pause_action.setText('Resume')
+        else:
+            testing = True
+            self.pause_action.setText('Pause')
 
 class QuestionWindow(QMainWindow):
 
@@ -33,6 +276,7 @@ class QuestionWindow(QMainWindow):
         self.newQuestion()
         self.window.show()
         self.app.exec_()
+        return
 
     #Clear up the UI and make a new question
     def newQuestion(self):
@@ -67,6 +311,7 @@ class QuestionWindow(QMainWindow):
         dimensions = self.getWindowDimensions()
 
         self.window = QWidget()
+        self.window.setWindowIcon(QtGui.QIcon(dir_path + 'resources/bbp.png'))
         self.window.setMaximumHeight(dimensions['window_height'])
         self.window.setMinimumHeight(dimensions['window_height'])
         self.window.setMaximumWidth(dimensions['window_width'])
@@ -138,7 +383,7 @@ class QuestionMaker():
     def makeRandomList(self,questionNumber,questionFile):
 
         #Open the question file
-        with open(questionFile,'r') as f:
+        with open(questionFile,'r',encoding="utf8") as f:
             reader = csv.reader(f)
             self.questions = list(reader)
 
@@ -205,31 +450,75 @@ def makeArgs():
             default=10,
             help='Minutes between each test, defaults to 10 minutes')
     parser.add_argument('-v','--v',action='version',
-            version='vocableBuilder CLI V{}'.format(__version__),help='Display program version')
+            version='vocabBuilder CLI V{}'.format(__version__),help='Display program version')
     return parser
 
-
-if __name__ == '__main__':
+def runCLI():
 
     parser = makeArgs()
     options = vars(parser.parse_args())
 
+    #Check the passed file exists before continuing
     if not os.path.exists(os.path.abspath(options['wordList'][0])):
             print('Error: File {} does not exist'.format(options['wordList'][0]))
             sys.exit()
 
+    options['wordList'] = options['wordList'][0]
+
+    return options
+
+def runGUI():
+
+    options = {}
+
+    status, options['wordList'], options['time'], options['questions'] = menu.runWindow()
+
+    if status == 'exit':
+        sys.exit()
+
+    elif status == 'start':
+        pass
+    else:
+        sys.exit()
+
+    return options
+
+
+if __name__ == '__main__':
+
     app = QApplication(sys.argv)
+    menu = MainMenu(app)
     window = QuestionWindow(app)
     questions = QuestionMaker()
 
+    if mode == 'GUI':
+
+        tray = TrayIcon(app)
+        tray.runTray()
+        options = runGUI()
+
+    elif mode == 'CLI':
+
+        options = runCLI()
+        tray = TrayIcon(app)
+        tray.runTray()
+
+    else:
+        print('Unknown mode type, options are GUI or CLI')
+        sys.exit()
+
+    #Testing loop, gets stuck here until exited using the tray icon options
     while True:
 
-        questionList = questions.makeRandomList(options['questions'],options['wordList'][0])
+        questionList = questions.makeRandomList(options['questions'],options['wordList'])
         currentIndex = 0
 
         while currentIndex < len(questionList):
 
-            window.runWindow(questionList[currentIndex:currentIndex+options['questions']])
-            currentIndex += options['questions']
-            time.sleep(options['time'] * 60)
+            if testing is True:
+                window.runWindow(questionList[currentIndex:currentIndex+options['questions']])
+                currentIndex += options['questions']
+
+            #Need to use QT sleep function so the UI and Tray icon is active
+            QtTest.QTest.qWait(options['time'] * 60 * 1000)
 
