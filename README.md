@@ -34,17 +34,21 @@ Get the binary directly with either:
 
 (Linux - GUI)
 ```
-wget https://github.com/stuianna/vocabBuilder/releases/download/V0.2.0/vocabBuilder
+wget https://github.com/stuianna/vocabBuilder/releases/download/v0.3.0/vocabBuilder
 ```
 
 (Linux - CLI)
 ```
-wget https://github.com/stuianna/vocabBuilder/releases/download/V0.2.0/vocabBuilder-cli
+wget https://github.com/stuianna/vocabBuilder/releases/download/v0.3.0/vocabBuilder-cli
+```
+The execution bit for the Linux distributions should be set with
+```
+chmod +x vocabBuilder
 ```
 
 (Windows - GUI)
 ```
-wget https://github.com/stuianna/vocabBuilder/releases/download/V0.2.0/vocabBuilder.exe
+wget https://github.com/stuianna/vocabBuilder/releases/download/v0.3.0/vocabBuilder.exe
 ```
 -- or --
 
