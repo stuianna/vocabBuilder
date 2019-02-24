@@ -357,10 +357,50 @@ class QuestionWindow(QMainWindow):
 
         self.questions = questions
         self.current_question_index = 0
+        self.loadStats()
+        self.questionTimes = []
         self.setUI()
         self.newQuestion()
         self.window.show()
         self.app.exec_()
+        self.testNumber += 1
+        self.saveStats()
+        return
+
+    def saveStats(self):
+
+        settings = QtCore.QSettings('vocabBuilder', 'config')
+        settings.beginGroup('Stats')
+        settings.setValue('testNumber',self.testNumber)
+        settings.setValue('totalCorrect',self.totalCorrect)
+        settings.setValue('totalIncorrect',self.totalIncorrect)
+        settings.setValue('totalQuestions',self.totalQuestions)
+
+        self.averageTime = (self.averageTime * self.totalQuestions + sum(self.questionTimes)) / (self.totalQuestions + len(self.questions))
+        settings.setValue('averageTime',self.averageTime)
+        settings.endGroup()
+        return
+
+    def loadStats(self):
+
+        settings = QtCore.QSettings('vocabBuilder', 'config')
+
+        settings.beginGroup('Stats')
+        self.testNumber = settings.value('testNumber', type=int)
+        self.totalCorrect = settings.value('totalCorrect', type=int)
+        self.totalIncorrect = settings.value('totalIncorrect', type=int)
+        self.totalQuestions = settings.value('totalQuestions', type=int)
+        self.averageTime = settings.value('averageTime', type=float)
+
+
+        if self.testNumber == 0:
+            self.testNumber = 0
+            self.totalCorrect = 0
+            self.totalIncorrect = 0
+            self.totalQuestions = 0
+            self.averageTime = 0
+
+        settings.endGroup()
         return
 
     #Clear up the UI and make a new question
@@ -371,6 +411,9 @@ class QuestionWindow(QMainWindow):
             self.window.close()
             return
 
+        self.totalQuestions += 1
+        self.answeredIncorrectly = False
+        self.questionStartTime = int(time.time())
         self.current_question = self.questions[self.current_question_index]
         self.current_question_index += 1
 
@@ -393,8 +436,16 @@ class QuestionWindow(QMainWindow):
     def buttonClicked(self,text,sender):
 
         if text == self.current_question['correct']:
+            
+            if self.answeredIncorrectly == False:
+                self.totalCorrect += 1
+            else:
+                self.totalIncorrect += 1
+
+            self.questionTimes.append(int(time.time()) - self.questionStartTime)
             self.newQuestion()
         else:
+            self.answeredIncorrectly = True
             sender.setStyleSheet("background-color: red")
         return
 
