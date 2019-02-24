@@ -66,6 +66,8 @@ three, drei
 four, vier
 grenadier, Grenadier
 ```
+If only two columns (tranlations) are specified, the testing screen included only one translation on each button. If three columns exist, the button contains an alternate text, as shown in the screenshot above. This is useful for phonetic pronunciation or an alternate language.
+
 ## Graphical User Interface
 
 The graphical interface consists of a simple main menu in which the basic options and word dictionary can be selected before the tests are run.

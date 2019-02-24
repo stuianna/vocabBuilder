@@ -18,7 +18,7 @@ if getattr(sys, 'frozen', False):
 else:
     dir_path = os.path.dirname(os.path.abspath(__file__)) + os.sep
 
-__version__ = '0.2.0'
+__version__ = '0.3.0'
 
 #GUI testing screen options
 window_height = 0.20
@@ -26,10 +26,13 @@ window_width = 0.40
 padding = 0.02
 
 #Program type CLI/GUI
-mode = 'CLI'
+mode = 'GUI'
 
 #Testing variable for pause/run
 testing = True
+
+#Variable for number of columns in csv data file
+langNumber = None
 
 class MainMenu(QMainWindow):
 
@@ -258,6 +261,88 @@ class TrayIcon(QMainWindow):
             testing = True
             self.pause_action.setText('Pause')
 
+#Subclass QLabel so custom mouse events can be used
+class ClickLabel(QLabel):
+
+    def __init(self,parent):
+        QLabel.__init__(self,parent)
+
+    def setCallback(self,press,release):
+        self.press = press
+        self.release = release
+
+    def mousePressEvent(self,event):
+        self.press()
+
+    def mouseReleaseEvent(self,event):
+        self.release()
+
+#Subclass so custom click events and multiline text can be used.
+class QuestionButton(QPushButton):
+
+    def __init__(self,parent,labelNumber,dimensions):
+        QPushButton.__init__(self,parent)
+        self.pressed.connect(self.buttonClicked)
+        self.released.connect(self.buttonReleased)
+        self.labelNumber = labelNumber
+        self.dimensions = dimensions
+        self.initLayout()
+        return
+
+    def initLayout(self):
+
+        btn1_layout = QVBoxLayout()
+        self.btn1_text1 = ClickLabel()
+        self.btn1_text1.setCallback(self.buttonClicked,self.buttonReleased)
+        self.btn1_text1.setTextFormat(QtCore.Qt.RichText);
+        self.btn1_text1.setStyleSheet("background-color: rgba(0,0,0,0%)")
+        self.btn1_text1.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignTop)
+        self.btn1_text1.setFixedHeight(self.dimensions['button_height'] / 3)
+        btn1_layout.addWidget(self.btn1_text1)
+
+        if self.labelNumber == 2:
+
+            self.btn1_text2 = ClickLabel()
+            self.btn1_text2.setCallback(self.buttonClicked,self.buttonReleased)
+            self.btn1_text2.setStyleSheet("background-color: rgba(0,0,0,0%)")
+            self.btn1_text2.setTextFormat(QtCore.Qt.RichText);
+            self.btn1_text2.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignBottom)
+            self.btn1_text2.setFixedHeight(self.dimensions['button_height'] / 3)
+            btn1_layout.addWidget(self.btn1_text2)
+
+        self.setLayout(btn1_layout)
+        return
+
+    def setText(self,main,alternate=None):
+
+        self.main = main
+        self.alternate = alternate
+        self.font_height_1 = int(self.height()/4)
+        self.font_height_2 = int(self.height()/5)
+        self.btn1_text1.setText( "<span style='font-size:{}px; \
+                font-weight:600; \
+                color:#000000;'>{}</span>".format(self.font_height_1,main))
+        if self.labelNumber == 2:
+            self.btn1_text2.setText( "<span style='font-size:{}px; \
+                    color:#000000;'>{}</span>".format(self.font_height_2,alternate))
+        return
+
+    def setOnClicked(self,target):
+        self.target = target
+        return
+
+    def buttonClicked(self):
+
+        self.setDown(True)
+        return
+    
+    def buttonReleased(self):
+
+        self.setDown(False)
+        self.setStyleSheet("")
+        self.target(self.main,self)
+        return
+
 class QuestionWindow(QMainWindow):
 
     def __init__(self,app):
@@ -281,6 +366,7 @@ class QuestionWindow(QMainWindow):
     #Clear up the UI and make a new question
     def newQuestion(self):
 
+
         if self.current_question_index >= len(self.questions):
             self.window.close()
             return
@@ -289,20 +375,27 @@ class QuestionWindow(QMainWindow):
         self.current_question_index += 1
 
         self.question_text.setText(self.current_question['question'])
-        self.btn1.setText(self.current_question['choice_1'])
-        self.btn2.setText(self.current_question['choice_2'])
-        self.btn3.setText(self.current_question['choice_3'])
+
+        self.btn1.setText(
+                self.current_question['choice_1'],
+                self.current_question['alternate_1'])
+        self.btn2.setText(
+                self.current_question['choice_2'],
+                self.current_question['alternate_2'])
+        self.btn3.setText(
+                self.current_question['choice_3'],
+                self.current_question['alternate_3'])
         self.btn1.setStyleSheet("background-color: none")
         self.btn2.setStyleSheet("background-color: none")
         self.btn3.setStyleSheet("background-color: none")
 
     #Gets called when a button is pressed
-    def buttonClicked(self):
+    def buttonClicked(self,text,sender):
 
-        if self.sender().text() == self.current_question['correct']:
+        if text == self.current_question['correct']:
             self.newQuestion()
         else:
-            self.sender().setStyleSheet("background-color: red")
+            sender.setStyleSheet("background-color: red")
         return
 
     #Setup the UI
@@ -327,20 +420,20 @@ class QuestionWindow(QMainWindow):
         self.question_text.resize(dimensions['text_width'],dimensions['text_height'])
         self.question_text.move(dimensions['text_x'],dimensions['text_y'])
 
-        self.btn1 = QPushButton(self.window)
+        self.btn1 = QuestionButton(self.window,langNumber,dimensions)
         self.btn1.resize(dimensions['button_width'],dimensions['button_height'])
         self.btn1.move(dimensions['button_x1'], dimensions['button_y'])  
-        self.btn1.clicked.connect(self.buttonClicked)
+        self.btn1.setOnClicked(self.buttonClicked)
 
-        self.btn2 = QPushButton(self.window)
+        self.btn2 = QuestionButton(self.window,langNumber,dimensions)
         self.btn2.resize(dimensions['button_width'],dimensions['button_height'])
         self.btn2.move(dimensions['button_x2'], dimensions['button_y'])  
-        self.btn2.clicked.connect(self.buttonClicked)
+        self.btn2.setOnClicked(self.buttonClicked)
 
-        self.btn3 = QPushButton(self.window)
+        self.btn3 = QuestionButton(self.window,langNumber,dimensions)
         self.btn3.resize(dimensions['button_width'],dimensions['button_height'])
         self.btn3.move(dimensions['button_x3'], dimensions['button_y'])  
-        self.btn3.clicked.connect(self.buttonClicked)
+        self.btn3.setOnClicked(self.buttonClicked)
         return 
 
     def getWindowDimensions(self):
@@ -386,6 +479,9 @@ class QuestionMaker():
         with open(questionFile,'r',encoding="utf8") as f:
             reader = csv.reader(f)
             self.questions = list(reader)
+            
+        global langNumber
+        langNumber = len(self.questions[0]) - 1
 
         questionList = []
         indexList = random.sample(range(0, len(self.questions)), len(self.questions))
@@ -406,6 +502,19 @@ class QuestionMaker():
             current['choice_{}'.format(choices[0])] = self.questions[i][1]
             current['choice_{}'.format(choices[1])] = self.questions[incorrect_1][1]
             current['choice_{}'.format(choices[2])] = self.questions[incorrect_2][1]
+
+            #If three languages are specified, make some alternate text as well
+            if langNumber == 2:
+
+                current['alternate_{}'.format(choices[0])] = self.questions[i][2]
+                current['alternate_{}'.format(choices[1])] = self.questions[incorrect_1][2]
+                current['alternate_{}'.format(choices[2])] = self.questions[incorrect_2][2]
+
+            else:
+                current['alternate_{}'.format(choices[0])] = ''
+                current['alternate_{}'.format(choices[1])] = ''
+                current['alternate_{}'.format(choices[2])] = ''
+
             questionList.append(current)
 
         questionList = self.padList(questionNumber,questionList)
